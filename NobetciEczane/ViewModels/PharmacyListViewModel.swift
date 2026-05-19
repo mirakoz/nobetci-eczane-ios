@@ -81,7 +81,7 @@ class PharmacyListViewModel: ObservableObject {
     }
 
     func fetchForCurrentLocation() async {
-        guard let loc = userLocation else {
+        guard userLocation != nil else {
             errorMessage = "Konum bilinmiyor"
             return
         }

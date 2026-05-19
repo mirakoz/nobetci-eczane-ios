@@ -124,11 +124,26 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    let id = UUID()
+    var id: UUID { UUID() }
     let cities: String
     let slug: String
 
     var displayName: String { cities }
+
+    init(cities: String, slug: String) {
+        self.cities = cities
+        self.slug = slug
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cities = try container.decode(String.self, forKey: .cities)
+        slug = try container.decode(String.self, forKey: .slug)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cities, slug
+    }
 }
 
 struct CitiesAPIResponse: Codable {

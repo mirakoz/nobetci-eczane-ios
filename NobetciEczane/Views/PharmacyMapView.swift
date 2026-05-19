@@ -10,58 +10,8 @@ struct PharmacyMapView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Map(position: $position, selection: $selectedPharmacy) {
-                    ForEach(viewModel.pharmacies) { pharmacy in
-                        Annotation(pharmacy.name, coordinate: CLLocationCoordinate2D(
-                            latitude: pharmacy.latitude,
-                            longitude: pharmacy.longitude
-                        )) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "cross.case.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.red)
-                                    .background(Circle().fill(.white).padding(2))
-                                Text(pharmacy.name)
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(.white.opacity(0.9)))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .annotationTitles(.hidden)
-                    }
-                }
-                .ignoresSafeArea(edges: .top)
-                .onChange(of: viewModel.pharmacies) { _, newValue in
-                    if !newValue.isEmpty {
-                        fitPharmacies(newValue)
-                    }
-                }
-
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            if let loc = viewModel.userLocation {
-                                position = .region(MKCoordinateRegion(
-                                    center: loc,
-                                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                                ))
-                            }
-                        } label: {
-                            Image(systemName: "location.fill")
-                                .font(.body)
-                                .padding(12)
-                                .background(Circle().fill(.white))
-                                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 16)
-                    }
-                }
+                mapContent
+                locationButton
             }
             .navigationTitle("Harita")
             .navigationBarTitleDisplayMode(.inline)
@@ -85,6 +35,86 @@ struct PharmacyMapView: View {
                         await viewModel.fetchForCity(viewModel.selectedCity)
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mapContent: some View {
+        Map(position: $position, selection: $selectedPharmacy) {
+            ForEach(viewModel.pharmacies) { pharmacy in
+                Annotation(pharmacy.name, coordinate: pharmacyCoordinate(pharmacy)) {
+                    pharmacyAnnotationView(pharmacy)
+                }
+                .annotationTitles(.hidden)
+            }
+        }
+        .ignoresSafeArea(edges: .top)
+        .onChange(of: viewModel.pharmacies) { _, newValue in
+            if !newValue.isEmpty {
+                fitPharmacies(newValue)
+            }
+        }
+    }
+
+    private func pharmacyCoordinate(_ pharmacy: Pharmacy) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: pharmacy.latitude, longitude: pharmacy.longitude)
+    }
+
+    @ViewBuilder
+    private func pharmacyAnnotationView(_ pharmacy: Pharmacy) -> some View {
+        VStack(spacing: 4) {
+            pharmacyIcon
+            pharmacyNameLabel(pharmacy)
+        }
+        .onTapGesture {
+            selectedPharmacy = pharmacy
+        }
+    }
+
+    private var pharmacyIcon: some View {
+        Image(systemName: "cross.case.fill")
+            .font(.title2)
+            .foregroundStyle(.red)
+            .background(
+                Circle()
+                    .fill(.white)
+                    .padding(2)
+            )
+    }
+
+    @ViewBuilder
+    private func pharmacyNameLabel(_ pharmacy: Pharmacy) -> some View {
+        Text(pharmacy.name)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.white.opacity(0.9)))
+            .clipShape(Capsule())
+    }
+
+    private var locationButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Button {
+                    if let loc = viewModel.userLocation {
+                        position = .region(MKCoordinateRegion(
+                            center: loc,
+                            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                        ))
+                    }
+                } label: {
+                    Image(systemName: "location.fill")
+                        .font(.body)
+                        .padding(12)
+                        .background(Circle().fill(.white))
+                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                }
+                .padding(.trailing, 16)
+                .padding(.bottom, 16)
             }
         }
     }
