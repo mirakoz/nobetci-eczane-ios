@@ -29,7 +29,7 @@ class PharmacyListViewModel: ObservableObject {
                 guard let loc = location else { return }
                 // Ignore implausible locations (e.g., simulator default SF coords)
                 if !LocationService.isPlausiblyInTurkey(loc) {
-                    self?.location = nil
+                    self?.userLocation = nil
                     return
                 }
                 self?.userLocation = loc
