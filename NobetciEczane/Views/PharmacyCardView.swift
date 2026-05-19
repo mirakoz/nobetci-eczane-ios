@@ -74,15 +74,20 @@ struct PharmacyCardView: View {
 
 #Preview {
     PharmacyCardView(pharmacy: Pharmacy(
-        id: "1",
+        id: 1,
         name: "Ada Eczanesi",
         address: "Caferağa Mah. Moda Cad. No:42 Kadıköy, İstanbul",
         phone: "02163331234",
+        phone2: nil,
         latitude: 40.99,
         longitude: 29.02,
         distance: 1.3,
         city: "İstanbul",
-        district: "Kadıköy"
+        district: "Kadıköy",
+        town: nil,
+        directions: nil,
+        pharmacyDutyStart: nil,
+        pharmacyDutyEnd: nil
     ))
     .padding()
 }
