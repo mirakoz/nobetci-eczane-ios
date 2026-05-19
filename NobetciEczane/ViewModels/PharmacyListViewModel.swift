@@ -67,7 +67,7 @@ class PharmacyListViewModel: ObservableObject {
 
     func fetchForCityDistrict(city: String, district: String) async {
         let coords = cityDistrictCoordinates(city: city, district: district)
-        userLocation = coords
+        userLocation = CLLocationCoordinate2D(latitude: coords.latitude, longitude: coords.longitude)
         await fetchPharmacies(lat: coords.latitude, lon: coords.longitude)
     }
 

@@ -14,7 +14,6 @@ struct PhoneService {
     }
 
     static func openDirections(latitude: Double, longitude: Double, name: String) {
-        let encodedName = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "maps://?daddr=\(latitude),\(longitude)&dirflg=d") {
             UIApplication.shared.open(url)
         }

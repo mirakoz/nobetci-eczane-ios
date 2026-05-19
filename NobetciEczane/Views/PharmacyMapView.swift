@@ -8,26 +8,28 @@ struct PharmacyMapView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Map(coordinateRegion: $mapViewModel.region, annotationItems: viewModel.pharmacies) { pharmacy in
-                    MapAnnotation(coordinate: CLLocationCoordinate2D(
-                        latitude: pharmacy.latitude,
-                        longitude: pharmacy.longitude
-                    )) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "cross.case.fill")
-                                .font(.title2)
-                                .foregroundStyle(.red)
-                                .background(Circle().fill(.white).padding(2))
-                            Text(pharmacy.name)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(.white.opacity(0.9)))
-                                .clipShape(Capsule())
-                        }
-                        .onTapGesture {
-                            mapViewModel.centerOnPharmacy(pharmacy)
+                Map(position: .constant(.region(mapViewModel.region))) {
+                    ForEach(viewModel.pharmacies) { pharmacy in
+                        Annotation(pharmacy.name, coordinate: CLLocationCoordinate2D(
+                            latitude: pharmacy.latitude,
+                            longitude: pharmacy.longitude
+                        )) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "cross.case.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.red)
+                                    .background(Circle().fill(.white).padding(2))
+                                Text(pharmacy.name)
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(.white.opacity(0.9)))
+                                    .clipShape(Capsule())
+                            }
+                            .onTapGesture {
+                                mapViewModel.centerOnPharmacy(pharmacy)
+                            }
                         }
                     }
                 }
@@ -110,7 +112,7 @@ struct PharmacyDetailSheet: View {
 
             HStack(spacing: 12) {
                 Button {
-                    PhoneService.call(phoneNumber: pharmacy.phone)
+                    _ = PhoneService.call(phoneNumber: pharmacy.phone)
                 } label: {
                     Label("Ara", systemImage: "phone.fill")
                         .font(.headline)

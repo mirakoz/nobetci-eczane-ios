@@ -35,7 +35,7 @@ struct PharmacyCardView: View {
 
             HStack(spacing: 12) {
                 Button {
-                    PhoneService.call(phoneNumber: pharmacy.phone)
+                    _ = PhoneService.call(phoneNumber: pharmacy.phone)
                 } label: {
                     Label(pharmacy.phone, systemImage: "phone.fill")
                         .font(.caption)

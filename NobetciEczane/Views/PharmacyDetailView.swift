@@ -85,7 +85,7 @@ struct PharmacyDetailView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             Button {
-                PhoneService.call(phoneNumber: pharmacy.phone)
+                _ = PhoneService.call(phoneNumber: pharmacy.phone)
             } label: {
                 Label("Ara", systemImage: "phone.fill")
                     .font(.headline)
