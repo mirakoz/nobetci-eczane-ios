@@ -6,6 +6,7 @@ struct PharmacyMapView: View {
     @State private var position: MapCameraPosition = .automatic
     @State private var selectedPharmacy: Pharmacy?
     @State private var showDetailSheet = false
+    @State private var userInteracted = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,7 @@ struct PharmacyMapView: View {
                     viewModel.requestLocationPermission()
                     viewModel.requestLocation()
                     Task {
+                        await viewModel.fetchDistricts(for: viewModel.selectedCity)
                         await viewModel.fetchForCity(viewModel.selectedCity)
                     }
                 }
@@ -45,17 +47,19 @@ struct PharmacyMapView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .onMapCameraChange { context in
+            userInteracted = true
+        }
         .onChange(of: viewModel.pharmacies) { _, newValue in
-            if !newValue.isEmpty {
-                fitPharmacies(Array(newValue.prefix(20)))
+            if !newValue.isEmpty && !userInteracted {
+                fitPharmacies(newValue)
             }
         }
     }
 
-    /// Max 20 nearest pharmacies for the map (sorted by distance, falls back to name order)
+    /// Shows up to 50 pharmacies on the map (all visible ones, not limited to 20)
     private var mapPharmacies: [Pharmacy] {
-        let sorted = viewModel.pharmacies.sorted { ($0.distance ?? .infinity) < ($1.distance ?? .infinity) }
-        return Array(sorted.prefix(20))
+        Array(viewModel.pharmacies.prefix(50))
     }
 
     private func pharmacyCoordinate(_ pharmacy: Pharmacy) -> CLLocationCoordinate2D {
@@ -102,6 +106,7 @@ struct PharmacyMapView: View {
             HStack {
                 Spacer()
                 Button {
+                    userInteracted = false
                     if let loc = viewModel.userLocation {
                         position = .region(MKCoordinateRegion(
                             center: loc,
