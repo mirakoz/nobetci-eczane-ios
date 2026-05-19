@@ -37,7 +37,10 @@ struct PharmacyListView: View {
                         Button {
                             Task {
                                 PharmacyCache.shared.clearCache()
-                                await viewModel.fetchForCity(viewModel.selectedCity, district: viewModel.selectedDistrict.isEmpty ? nil : viewModel.selectedDistrict)
+                                await viewModel.fetchForCity(
+                                    viewModel.selectedCity,
+                                    district: viewModel.selectedDistrict.isEmpty ? nil : viewModel.selectedDistrict
+                                )
                             }
                         } label: {
                             Label("Yenile (Önbelleği Temizle)", systemImage: "arrow.clockwise")
@@ -148,7 +151,10 @@ struct PharmacyListView: View {
         }
         .listStyle(.plain)
         .refreshable {
-            await viewModel.fetchForCity(viewModel.selectedCity, district: viewModel.selectedDistrict.isEmpty ? nil : viewModel.selectedDistrict)
+            await viewModel.fetchForCity(
+                viewModel.selectedCity,
+                district: viewModel.selectedDistrict.isEmpty ? nil : viewModel.selectedDistrict
+            )
         }
     }
 }
@@ -159,8 +165,9 @@ struct CityPickerSheet: View {
     @State private var selectedCity: String = ""
     @State private var isLoading = false
 
-    let topCities = ["İstanbul", "Ankara", "İzmir"]
-    let allCities = [
+    private let topCities = ["İstanbul", "Ankara", "İzmir"]
+    private let sortedCities: [String] = {
+        let all = [
             "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Antalya",
             "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik",
             "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa", "Çanakkale", "Çankırı", "Çorum",
@@ -173,9 +180,9 @@ struct CityPickerSheet: View {
             "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
             "Kıbrıs KKTC"
         ]
-        let sorted = allCities.sorted()
-        return topCities + sorted
+        return all.sorted()
     }()
+    private var allCities: [String] { topCities + sortedCities }
 
     var body: some View {
         NavigationStack {
