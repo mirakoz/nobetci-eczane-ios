@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import Combine
 
 @MainActor
 class PharmacyListViewModel: ObservableObject {
@@ -7,11 +8,12 @@ class PharmacyListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var userLocation: CLLocationCoordinate2D?
+    @Published var selectedCity: String = ""
+    @Published var selectedDistrict: String = ""
 
     private let apiService = PharmacyAPIService()
     private let locationService = LocationService()
-
-    var locationServicePublished: LocationService { locationService }
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         setupLocationBinding()
@@ -23,14 +25,9 @@ class PharmacyListViewModel: ObservableObject {
             .sink { [weak self] location in
                 guard let loc = location else { return }
                 self?.userLocation = loc
-                Task {
-                    await self?.fetchPharmacies(lat: loc.latitude, lon: loc.longitude)
-                }
             }
             .store(in: &cancellables)
     }
-
-    private var cancellables = Set<AnyCancellable>()
 
     func requestLocationPermission() {
         locationService.requestPermission()
@@ -40,12 +37,16 @@ class PharmacyListViewModel: ObservableObject {
         locationService.requestLocation()
     }
 
-    func fetchPharmacies(lat: Double, lon: Double) async {
+    var isAuthorized: Bool {
+        locationService.isAuthorized
+    }
+
+    func fetchForCity(_ city: String, district: String? = nil) async {
         isLoading = true
         errorMessage = nil
 
         do {
-            var result = try await apiService.fetchPharmacies(latitude: lat, longitude: lon)
+            var result = try await apiService.fetchPharmacies(city: city, district: district)
             if let userLoc = userLocation {
                 let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
                 for i in result.indices {
@@ -65,22 +66,12 @@ class PharmacyListViewModel: ObservableObject {
         isLoading = false
     }
 
-    func fetchForCityDistrict(city: String, district: String) async {
-        let coords = cityDistrictCoordinates(city: city, district: district)
-        userLocation = CLLocationCoordinate2D(latitude: coords.latitude, longitude: coords.longitude)
-        await fetchPharmacies(lat: coords.latitude, lon: coords.longitude)
-    }
-
-    private func cityDistrictCoordinates(city: String, district: String) -> (latitude: Double, longitude: Double) {
-        let locations: [String: (Double, Double)] = [
-            "İstanbul": (41.0082, 28.9784),
-            "Ankara": (39.9334, 32.8597),
-            "İzmir": (38.4237, 27.1428),
-            "Bursa": (40.1826, 29.0665),
-            "Antalya": (36.8969, 30.7133)
-        ]
-        return locations[city] ?? (41.0082, 28.9784)
+    func fetchForCurrentLocation() async {
+        guard let loc = userLocation else {
+            errorMessage = "Konum bilinmiyor"
+            return
+        }
+        // For now, default to Istanbul (user can change via search)
+        await fetchForCity("İstanbul")
     }
 }
-
-import Combine

@@ -8,16 +8,23 @@ struct Pharmacy: Identifiable, Codable, Equatable {
     let latitude: Double
     let longitude: Double
     var distance: Double?
-    var isOpen: Bool
+    let city: String
+    let district: String
 
-    var distanceText: String {
-        guard let d = distance else { return "" }
-        return String(format: "%.1f km", d)
+    enum CodingKeys: String, CodingKey {
+        case id = "pharmacyID"
+        case name = "pharmacyName"
+        case address, phone, latitude, longitude, city, district
     }
 }
 
 struct PharmacyAPIResponse: Codable {
-    let data: [Pharmacy]?
+    let status: String
     let message: String?
-    let status: String?
+    let messageTR: String?
+    let systemTime: Int?
+    let endpoint: String?
+    let rowCount: Int?
+    let creditUsed: Int?
+    let data: [Pharmacy]?
 }

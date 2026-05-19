@@ -4,8 +4,15 @@ actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
 
-    func fetchPharmacies(latitude: Double, longitude: Double) async throws -> [Pharmacy] {
-        guard let url = URL(string: "\(baseURL)?latitude=\(latitude)&longitude=\(longitude)") else {
+    func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
+        var urlComponents = URLComponents(string: baseURL)!
+        var queryItems = [URLQueryItem(name: "city", value: city.lowercased())]
+        if let district = district, !district.isEmpty {
+            queryItems.append(URLQueryItem(name: "district", value: district))
+        }
+        urlComponents.queryItems = queryItems
+
+        guard let url = urlComponents.url else {
             throw APIError.invalidURL
         }
 
@@ -27,11 +34,32 @@ actor PharmacyAPIService {
         let decoder = JSONDecoder()
         let apiResponse = try decoder.decode(PharmacyAPIResponse.self, from: data)
 
-        guard let pharmacies = apiResponse.data else {
+        if apiResponse.status != "success" {
             throw APIError.noData
         }
 
-        return pharmacies
+        return apiResponse.data ?? []
+    }
+
+    func fetchAllCities() async throws -> [String] {
+        guard let url = URL(string: Constants.nosyCitiesURL) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 10
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+        struct CitiesResponse: Codable {
+            let status: String
+            let data: [CityItem]?
+        }
+        struct CityItem: Codable {
+            let cities: String
+        }
+        let resp = try JSONDecoder().decode(CitiesResponse.self, from: data)
+        return resp.data?.map { $0.cities } ?? []
     }
 }
 
