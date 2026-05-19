@@ -28,6 +28,14 @@ class LocationService: NSObject, ObservableObject {
         locationManager.requestLocation()
     }
 
+    /// Returns true if the coordinate is plausibly within Turkey
+    static func isPlausiblyInTurkey(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        let lat = coordinate.latitude
+        let lon = coordinate.longitude
+        // Rough bounding box for Turkey
+        return lat >= 35.5 && lat <= 42.5 && lon >= 25.0 && lon <= 45.0
+    }
+
     var isAuthorized: Bool {
         authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways
     }

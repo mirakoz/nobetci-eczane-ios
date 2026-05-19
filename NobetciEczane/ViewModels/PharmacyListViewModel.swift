@@ -12,6 +12,7 @@ class PharmacyListViewModel: ObservableObject {
     @Published var selectedDistrict: String = ""
     @Published var availableDistricts: [District] = []
     @Published var isLoadingDistricts = false
+    @Published var cacheAge: TimeInterval?
 
     private let apiService = PharmacyAPIService()
     private let locationService = LocationService()
@@ -26,6 +27,11 @@ class PharmacyListViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] location in
                 guard let loc = location else { return }
+                // Ignore implausible locations (e.g., simulator default SF coords)
+                if !LocationService.isPlausiblyInTurkey(loc) {
+                    self?.location = nil
+                    return
+                }
                 self?.userLocation = loc
             }
             .store(in: &cancellables)
@@ -48,9 +54,12 @@ class PharmacyListViewModel: ObservableObject {
         errorMessage = nil
         selectedCity = city
         selectedDistrict = district ?? ""
+        cacheAge = PharmacyCache.shared.cacheAge(city: city, district: district)
 
         do {
             var result = try await apiService.fetchPharmacies(city: city, district: district)
+            cacheAge = 0
+
             if let userLoc = userLocation {
                 let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
                 for i in result.indices {

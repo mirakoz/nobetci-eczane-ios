@@ -37,7 +37,7 @@ struct PharmacyMapView: View {
     @ViewBuilder
     private var mapView: some View {
         Map(position: $position) {
-            ForEach(viewModel.pharmacies) { pharmacy in
+            ForEach(mapPharmacies) { pharmacy in
                 Annotation(pharmacy.name, coordinate: pharmacyCoordinate(pharmacy)) {
                     pharmacyAnnotationView(pharmacy)
                 }
@@ -47,9 +47,15 @@ struct PharmacyMapView: View {
         .ignoresSafeArea(edges: .top)
         .onChange(of: viewModel.pharmacies) { _, newValue in
             if !newValue.isEmpty {
-                fitPharmacies(newValue)
+                fitPharmacies(Array(newValue.prefix(20)))
             }
         }
+    }
+
+    /// Max 20 nearest pharmacies for the map (sorted by distance, falls back to name order)
+    private var mapPharmacies: [Pharmacy] {
+        let sorted = viewModel.pharmacies.sorted { ($0.distance ?? .infinity) < ($1.distance ?? .infinity) }
+        return Array(sorted.prefix(20))
     }
 
     private func pharmacyCoordinate(_ pharmacy: Pharmacy) -> CLLocationCoordinate2D {

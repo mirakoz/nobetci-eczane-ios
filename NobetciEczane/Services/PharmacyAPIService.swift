@@ -5,6 +5,12 @@ actor PharmacyAPIService {
     private let baseURL = Constants.nosyAPIURL
 
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
+        // Check cache first
+        let (cached, isStale) = PharmacyCache.shared.cachedPharmacies(city: city, district: district)
+        if !cached.isEmpty && !isStale {
+            return cached
+        }
+
         var urlString = "\(baseURL)?city=\(city.slugified())"
         if let district = district, !district.isEmpty {
             urlString += "&district=\(district.slugified())"
@@ -32,8 +38,15 @@ actor PharmacyAPIService {
         let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
+            // Fall back to stale cache if available
+            if !cached.isEmpty {
+                return cached
+            }
             throw APIError.decodingError(message: decoded.message ?? "Unknown error")
         }
+
+        // Cache the fresh result
+        PharmacyCache.shared.cachePharmacies(pharmacies, city: city, district: district)
 
         return pharmacies
     }
