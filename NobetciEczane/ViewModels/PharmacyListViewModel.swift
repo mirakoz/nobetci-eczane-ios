@@ -8,8 +8,10 @@ class PharmacyListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var userLocation: CLLocationCoordinate2D?
-    @Published var selectedCity: String = ""
+    @Published var selectedCity: String = "İstanbul"
     @Published var selectedDistrict: String = ""
+    @Published var availableDistricts: [District] = []
+    @Published var isLoadingDistricts = false
 
     private let apiService = PharmacyAPIService()
     private let locationService = LocationService()
@@ -44,6 +46,8 @@ class PharmacyListViewModel: ObservableObject {
     func fetchForCity(_ city: String, district: String? = nil) async {
         isLoading = true
         errorMessage = nil
+        selectedCity = city
+        selectedDistrict = district ?? ""
 
         do {
             var result = try await apiService.fetchPharmacies(city: city, district: district)
@@ -66,12 +70,21 @@ class PharmacyListViewModel: ObservableObject {
         isLoading = false
     }
 
+    func fetchDistricts(for city: String) async {
+        isLoadingDistricts = true
+        do {
+            availableDistricts = try await apiService.fetchDistricts(city: city)
+        } catch {
+            availableDistricts = []
+        }
+        isLoadingDistricts = false
+    }
+
     func fetchForCurrentLocation() async {
         guard let loc = userLocation else {
             errorMessage = "Konum bilinmiyor"
             return
         }
-        // For now, default to Istanbul (user can change via search)
         await fetchForCity("İstanbul")
     }
 }

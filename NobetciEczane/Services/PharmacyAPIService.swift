@@ -5,21 +5,19 @@ actor PharmacyAPIService {
     private let baseURL = Constants.nosyAPIURL
 
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
-        var urlComponents = URLComponents(string: baseURL)!
-        var queryItems = [URLQueryItem(name: "city", value: city.lowercased())]
+        var urlString = "\(baseURL)?city=\(city.slugified())"
         if let district = district, !district.isEmpty {
-            queryItems.append(URLQueryItem(name: "district", value: district))
+            urlString += "&district=\(district.slugified())"
         }
-        urlComponents.queryItems = queryItems
 
-        guard let url = urlComponents.url else {
+        guard let url = URL(string: urlString) else {
             throw APIError.invalidURL
         }
 
         var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 15
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -31,35 +29,63 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
-        let apiResponse = try decoder.decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
 
-        if apiResponse.status != "success" {
-            throw APIError.noData
+        guard decoded.status == "success", let pharmacies = decoded.data else {
+            throw APIError.decodingError(message: decoded.message ?? "Unknown error")
         }
 
-        return apiResponse.data ?? []
+        return pharmacies
     }
 
-    func fetchAllCities() async throws -> [String] {
+    func fetchDistricts(city: String) async throws -> [District] {
+        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        }
+
+        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        return decoded.data ?? []
+    }
+
+    func fetchAllCities() async throws -> [City] {
         guard let url = URL(string: Constants.nosyCitiesURL) else {
             throw APIError.invalidURL
         }
 
         var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let (data, _) = try await URLSession.shared.data(for: request)
-        struct CitiesResponse: Codable {
-            let status: String
-            let data: [CityItem]?
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
         }
-        struct CityItem: Codable {
-            let cities: String
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
-        let resp = try JSONDecoder().decode(CitiesResponse.self, from: data)
-        return resp.data?.map { $0.cities } ?? []
+
+        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        return decoded.data ?? []
     }
 }
 
@@ -67,16 +93,75 @@ enum APIError: LocalizedError {
     case invalidURL
     case invalidResponse
     case httpError(statusCode: Int)
-    case noData
-    case decodingError
+    case decodingError(message: String)
 
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucudan geçersiz yanıt"
         case .httpError(let code): return "HTTP hatası: \(code)"
-        case .noData: return "Veri bulunamadı"
-        case .decodingError: return "Veri çözümlenemedi"
+        case .decodingError(let msg): return "Veri hatası: \(msg)"
         }
+    }
+}
+
+struct DistrictsAPIResponse: Codable {
+    let status: String
+    let message: String?
+    let rowCount: Int?
+    let creditUsed: Int?
+    let data: [District]?
+}
+
+struct CityDistrict: Codable {
+    let cities: String
+    let slug: String
+}
+
+struct DistrictsAPIResponse2: Codable {
+    let status: String
+    let data: [CityDistrict]?
+}
+
+struct District: Identifiable, Codable, Hashable {
+    let id = UUID()
+    let cities: String
+    let slug: String
+
+    var displayName: String { cities }
+}
+
+struct CitiesAPIResponse: Codable {
+    let status: String
+    let rowCount: Int?
+    let creditUsed: Int?
+    let data: [City]?
+}
+
+struct City: Identifiable, Codable, Hashable {
+    var id: String { slug }
+    let cities: String
+    let slug: String
+
+    var displayName: String { cities }
+}
+
+extension String {
+    func slugified() -> String {
+        var s = self.lowercased()
+        let turkishMap: [Character: String] = [
+            "İ": "i", "I": "i", "ı": "i",
+            "Ş": "s", "ş": "s",
+            "Ğ": "g", "ğ": "g",
+            "Ü": "u", "ü": "u",
+            "Ö": "o", "ö": "o",
+            "Ç": "c", "ç": "c",
+            " ": "-"
+        ]
+        for (char, replacement) in turkishMap {
+            s = s.replacingOccurrences(of: String(char), with: replacement)
+        }
+        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        return s
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct PharmacyListView: View {
     @StateObject private var viewModel = PharmacyListViewModel()
     @State private var showCityPicker = false
+    @State private var showDistrictPicker = false
     @State private var searchText = ""
 
     var body: some View {
@@ -19,23 +20,38 @@ struct PharmacyListView: View {
             .navigationTitle("Nöbetçi Eczane")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showCityPicker = true
+                    Menu {
+                        Button {
+                            showCityPicker = true
+                        } label: {
+                            Label("Şehir Değiştir", systemImage: "building.2")
+                        }
+                        if !viewModel.availableDistricts.isEmpty {
+                            Button {
+                                showDistrictPicker = true
+                            } label: {
+                                Label("İlçe Değiştir", systemImage: "map")
+                            }
+                        }
                     } label: {
-                        Image(systemName: "building.2")
+                        Image(systemName: "slider.horizontal.3")
                     }
                 }
             }
             .sheet(isPresented: $showCityPicker) {
                 CityPickerSheet(viewModel: viewModel, isPresented: $showCityPicker)
             }
-        }
-        .onAppear {
-            if viewModel.pharmacies.isEmpty && !viewModel.isLoading {
-                viewModel.requestLocationPermission()
-                viewModel.requestLocation()
-                Task {
-                    await viewModel.fetchForCity("İstanbul")
+            .sheet(isPresented: $showDistrictPicker) {
+                DistrictPickerSheet(viewModel: viewModel, isPresented: $showDistrictPicker)
+            }
+            .onAppear {
+                if viewModel.pharmacies.isEmpty && !viewModel.isLoading {
+                    viewModel.requestLocationPermission()
+                    viewModel.requestLocation()
+                    Task {
+                        await viewModel.fetchDistricts(for: viewModel.selectedCity)
+                        await viewModel.fetchForCity(viewModel.selectedCity)
+                    }
                 }
             }
         }
@@ -93,17 +109,37 @@ struct PharmacyListView: View {
 
     private var pharmacyList: some View {
         List {
-            ForEach(viewModel.pharmacies) { pharmacy in
-                NavigationLink(destination: PharmacyDetailView(pharmacy: pharmacy)) {
-                    PharmacyCardView(pharmacy: pharmacy)
+            Section {
+                ForEach(viewModel.pharmacies) { pharmacy in
+                    NavigationLink(destination: PharmacyDetailView(pharmacy: pharmacy)) {
+                        PharmacyCardView(pharmacy: pharmacy)
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            } header: {
+                HStack {
+                    Text("\(viewModel.pharmacies.count) eczane")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !viewModel.selectedCity.isEmpty {
+                        Text(viewModel.selectedCity)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    if !viewModel.selectedDistrict.isEmpty {
+                        Text("/ \(viewModel.selectedDistrict)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .textCase(nil)
             }
         }
         .listStyle(.plain)
         .refreshable {
-            await viewModel.fetchForCity(viewModel.selectedCity)
+            await viewModel.fetchForCity(viewModel.selectedCity, district: viewModel.selectedDistrict.isEmpty ? nil : viewModel.selectedDistrict)
         }
     }
 }
@@ -112,7 +148,6 @@ struct CityPickerSheet: View {
     @ObservedObject var viewModel: PharmacyListViewModel
     @Binding var isPresented: Bool
     @State private var selectedCity: String = ""
-    @State private var selectedDistrict: String = ""
     @State private var isLoading = false
 
     let allCities = [
@@ -131,21 +166,18 @@ struct CityPickerSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Şehir") {
-                    Picker("Şehir Seçin", selection: $selectedCity) {
-                        Text("Seçin").tag("")
-                        ForEach(allCities, id: \.self) { city in
-                            Text(city).tag(city)
+            List(allCities, id: \.self) { city in
+                Button {
+                    selectedCity = city
+                } label: {
+                    HStack {
+                        Text(city)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selectedCity == city || viewModel.selectedCity == city {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.blue)
                         }
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                if !selectedCity.isEmpty {
-                    Section("İlçe (Opsiyonel)") {
-                        TextField("İlçe yazın veya boş bırakın", text: $selectedDistrict)
-                            .textInputAutocapitalization(.never)
                     }
                 }
             }
@@ -158,17 +190,86 @@ struct CityPickerSheet: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Ara") {
+                    Button("Seç") {
                         isPresented = false
                         Task {
-                            await viewModel.fetchForCity(selectedCity, district: selectedDistrict.isEmpty ? nil : selectedDistrict)
+                            viewModel.selectedDistrict = ""
+                            await viewModel.fetchDistricts(for: selectedCity)
+                            await viewModel.fetchForCity(selectedCity)
                         }
                     }
                     .disabled(selectedCity.isEmpty)
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
+    }
+}
+
+struct DistrictPickerSheet: View {
+    @ObservedObject var viewModel: PharmacyListViewModel
+    @Binding var isPresented: Bool
+    @State private var selectedDistrict: String = ""
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if viewModel.isLoadingDistricts {
+                    ProgressView("İlçeler yükleniyor...")
+                } else if viewModel.availableDistricts.isEmpty {
+                    Text("Bu şehirde ilçe bulunamadı.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    List(viewModel.availableDistricts) { district in
+                        Button {
+                            selectedDistrict = district.cities
+                        } label: {
+                            HStack {
+                                Text(district.cities)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selectedDistrict == district.cities || viewModel.selectedDistrict == district.cities {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("İlçe Seç")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("İptal") {
+                        isPresented = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Seç") {
+                        isPresented = false
+                        Task {
+                            await viewModel.fetchForCity(
+                                viewModel.selectedCity,
+                                district: selectedDistrict.isEmpty ? nil : selectedDistrict
+                            )
+                        }
+                    }
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    if !viewModel.selectedDistrict.isEmpty {
+                        Button("Filtreyi Kaldır") {
+                            isPresented = false
+                            Task {
+                                await viewModel.fetchForCity(viewModel.selectedCity)
+                            }
+                        }
+                        .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

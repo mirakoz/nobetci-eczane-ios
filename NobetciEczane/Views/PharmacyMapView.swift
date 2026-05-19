@@ -3,12 +3,14 @@ import MapKit
 
 struct PharmacyMapView: View {
     @StateObject private var viewModel = PharmacyListViewModel()
-    @StateObject private var mapViewModel = MapViewModel()
+    @State private var position: MapCameraPosition = .automatic
+    @State private var selectedPharmacy: Pharmacy?
+    @State private var showDetailSheet = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Map(position: .constant(.region(mapViewModel.region))) {
+                Map(position: $position, selection: $selectedPharmacy) {
                     ForEach(viewModel.pharmacies) { pharmacy in
                         Annotation(pharmacy.name, coordinate: CLLocationCoordinate2D(
                             latitude: pharmacy.latitude,
@@ -27,13 +29,16 @@ struct PharmacyMapView: View {
                                     .background(Capsule().fill(.white.opacity(0.9)))
                                     .clipShape(Capsule())
                             }
-                            .onTapGesture {
-                                mapViewModel.centerOnPharmacy(pharmacy)
-                            }
                         }
+                        .annotationTitles(.hidden)
                     }
                 }
                 .ignoresSafeArea(edges: .top)
+                .onChange(of: viewModel.pharmacies) { _, newValue in
+                    if !newValue.isEmpty {
+                        fitPharmacies(newValue)
+                    }
+                }
 
                 VStack {
                     Spacer()
@@ -41,10 +46,10 @@ struct PharmacyMapView: View {
                         Spacer()
                         Button {
                             if let loc = viewModel.userLocation {
-                                mapViewModel.region = MKCoordinateRegion(
+                                position = .region(MKCoordinateRegion(
                                     center: loc,
                                     span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                                )
+                                ))
                             }
                         } label: {
                             Image(systemName: "location.fill")
@@ -60,18 +65,51 @@ struct PharmacyMapView: View {
             }
             .navigationTitle("Harita")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $mapViewModel.showDetailSheet) {
-                if let pharmacy = mapViewModel.selectedPharmacy {
-                    PharmacyDetailSheet(pharmacy: pharmacy)
+            .sheet(isPresented: $showDetailSheet) {
+                if let pharmacy = selectedPharmacy {
+                    PharmacyMapDetailSheet(pharmacy: pharmacy)
                         .presentationDetents([.medium])
                         .presentationDragIndicator(.visible)
                 }
             }
+            .onChange(of: selectedPharmacy) { _, newValue in
+                if newValue != nil {
+                    showDetailSheet = true
+                }
+            }
+            .onAppear {
+                if viewModel.pharmacies.isEmpty {
+                    viewModel.requestLocationPermission()
+                    viewModel.requestLocation()
+                    Task {
+                        await viewModel.fetchForCity(viewModel.selectedCity)
+                    }
+                }
+            }
         }
+    }
+
+    private func fitPharmacies(_ pharmacies: [Pharmacy]) {
+        guard !pharmacies.isEmpty else { return }
+        let lats = pharmacies.map { $0.latitude }
+        let lons = pharmacies.map { $0.longitude }
+        let minLat = lats.min() ?? 0
+        let maxLat = lats.max() ?? 0
+        let minLon = lons.min() ?? 0
+        let maxLon = lons.max() ?? 0
+        let center = CLLocationCoordinate2D(
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLon + maxLon) / 2
+        )
+        let span = MKCoordinateSpan(
+            latitudeDelta: max(0.01, (maxLat - minLat) * 1.5),
+            longitudeDelta: max(0.01, (maxLon - minLon) * 1.5)
+        )
+        position = .region(MKCoordinateRegion(center: center, span: span))
     }
 }
 
-struct PharmacyDetailSheet: View {
+struct PharmacyMapDetailSheet: View {
     let pharmacy: Pharmacy
     @Environment(\.dismiss) private var dismiss
 
