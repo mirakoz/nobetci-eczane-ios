@@ -135,7 +135,8 @@ struct PharmacyDetailView: View {
             latitude: 40.99,
             longitude: 29.02,
             distance: 1.3,
-            isOpen: true
+            city: "İstanbul",
+            district: "Kadıköy"
         ))
     }
 }
