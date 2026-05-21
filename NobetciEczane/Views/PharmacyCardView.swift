@@ -32,6 +32,13 @@ struct PharmacyCardView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = pharmacy.address
+                    } label: {
+                        Label("Adresi Kopyala", systemImage: "doc.on.doc")
+                    }
+                }
 
             HStack(spacing: 12) {
                 Button {

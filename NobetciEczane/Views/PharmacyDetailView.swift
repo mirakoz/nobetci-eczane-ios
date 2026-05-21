@@ -66,6 +66,13 @@ struct PharmacyDetailView: View {
             Label(pharmacy.address, systemImage: "mappin.and.ellipse")
                 .font(.body)
                 .foregroundStyle(.secondary)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = pharmacy.address
+                    } label: {
+                        Label("Adresi Kopyala", systemImage: "doc.on.doc")
+                    }
+                }
 
             Label(pharmacy.phone, systemImage: "phone.fill")
                 .font(.body)
@@ -109,6 +116,18 @@ struct PharmacyDetailView: View {
                     .padding()
                     .background(Color.orange)
                     .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Button {
+                UIPasteboard.general.string = pharmacy.address
+            } label: {
+                Label("Adresi Kopyala", systemImage: "doc.on.doc")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.15))
+                    .foregroundStyle(.blue)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
