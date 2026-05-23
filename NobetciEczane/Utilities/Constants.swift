@@ -1,7 +1,14 @@
 import Foundation
 
 struct Constants {
-    static let nosyAPIKey = "Bh688nnEEhMJVchkjly1rw3dqj82DhZ0XN39QPyK6yxURlYD2sW8PC2OSJlI"
+    static var nosyAPIKey: String {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let key = plist["NosyAPIKey"] as? String else {
+            return ""
+        }
+        return key
+    }
     static let nosyCitiesURL = "https://www.nosyapi.com/apiv2/service/pharmacies-on-duty/cities"
     static let nosyAPIURL = "https://www.nosyapi.com/apiv2/service/pharmacies-on-duty"
 }
