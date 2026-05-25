@@ -62,14 +62,19 @@ class PharmacyListViewModel: ObservableObject {
 
             if let userLoc = userLocation {
                 let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
-                }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
+                // Move distance calculation and sorting to a background task to keep UI responsive
+                result = await Task.detached(priority: .userInitiated) {
+                    var sorted = result
+                    for i in sorted.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: sorted[i].latitude,
+                            longitude: sorted[i].longitude
+                        )
+                        sorted[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    sorted.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
+                    return sorted
+                }.value
             }
             pharmacies = result
         } catch {
