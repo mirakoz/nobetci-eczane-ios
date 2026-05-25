@@ -1,0 +1,3 @@
+## 2025-05-14 - SwiftUI List Performance and Main Actor Responsiveness
+**Learning:** Using computed properties that generate new identities (e.g., `var id: UUID { UUID() }`) in models used by SwiftUI `List` or `ForEach` is a significant performance anti-pattern. It breaks SwiftUI's identity tracking, forcing the entire list to re-render even if data hasn't changed. Additionally, performing $O(n)$ operations like distance calculations and sorting on the Main Actor can cause visible UI hitches.
+**Action:** Always use stable identifiers (like a slug or server-side ID) for `Identifiable` models. Offload CPU-intensive tasks like distance calculations and sorting to background tasks (`Task.detached`) to keep the Main Actor free for UI rendering.
