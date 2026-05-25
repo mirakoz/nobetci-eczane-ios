@@ -1,0 +1,8 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcuserstate
+
+# Secrets
+NobetciEczane/Resources/Secrets.plist
