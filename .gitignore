@@ -1,0 +1,17 @@
+# Xcode
+#
+# build/
+# DerivedData/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+*.xcuserstate
+project.xcworkspace/xcuserdata/
+
+# Secrets
+NobetciEczane/Resources/Secrets.plist
+
+# Others
+.DS_Store
