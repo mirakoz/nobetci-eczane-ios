@@ -137,26 +137,14 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    var id: UUID { UUID() }
+    // BOLT: Using 'slug' as a stable identity instead of generating a new UUID().
+    // This prevents SwiftUI from unnecessarily re-rendering the entire list when
+    // state changes, as identity tracking is now stable.
+    var id: String { slug }
     let cities: String
     let slug: String
 
     var displayName: String { cities }
-
-    init(cities: String, slug: String) {
-        self.cities = cities
-        self.slug = slug
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        cities = try container.decode(String.self, forKey: .cities)
-        slug = try container.decode(String.self, forKey: .slug)
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case cities, slug
-    }
 }
 
 struct CitiesAPIResponse: Codable {
