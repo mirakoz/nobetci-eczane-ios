@@ -57,21 +57,30 @@ class PharmacyListViewModel: ObservableObject {
         cacheAge = PharmacyCache.shared.cacheAge(city: city, district: district)
 
         do {
-            var result = try await apiService.fetchPharmacies(city: city, district: district)
+            let fetchedPharmacies = try await apiService.fetchPharmacies(city: city, district: district)
             cacheAge = 0
 
-            if let userLoc = userLocation {
-                let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
+            let userLoc = userLocation
+
+            // Offload CPU-intensive distance calculation and sorting to background thread
+            // to keep the Main Actor (UI thread) responsive.
+            let processedPharmacies = await Task.detached(priority: .userInitiated) {
+                var result = fetchedPharmacies
+                if let userLoc = userLoc {
+                    let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                    for i in result.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: result[i].latitude,
+                            longitude: result[i].longitude
+                        )
+                        result[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
                 }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
-            }
-            pharmacies = result
+                return result
+            }.value
+
+            pharmacies = processedPharmacies
         } catch {
             errorMessage = error.localizedDescription
         }
