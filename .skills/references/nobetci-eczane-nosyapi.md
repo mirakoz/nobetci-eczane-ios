@@ -113,6 +113,6 @@ struct Pharmacy: Identifiable, Codable {
 ## Notes
 - Slugs: lowercase, Turkish characters converted (İ→i, ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c)
 - Phone numbers may be masked (e.g. "0(232)***-**-**") — masked numbers won't work for calling
-- API key: Bh688nnEEhMJVchkjly1rw3dqj82DhZ0XN39QPyK6yxURlYD2sW8PC2OSJlI
+- API key: [REDACTED] (Stored in Secrets.plist)
 - Credit cost: 1 per /pharmacies-on-duty call, 0 for /cities and /status
 - 81 credits per call for /all — use sparingly
