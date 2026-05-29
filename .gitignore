@@ -1,0 +1,13 @@
+# Secrets
+Secrets.plist
+
+# Xcode
+build/
+DerivedData/
+
+# Personal Xcode settings
+*.xcuserdatad
+*.xcuserstate
+
+# OS X
+.DS_Store
