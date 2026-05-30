@@ -57,20 +57,27 @@ class PharmacyListViewModel: ObservableObject {
         cacheAge = PharmacyCache.shared.cacheAge(city: city, district: district)
 
         do {
-            var result = try await apiService.fetchPharmacies(city: city, district: district)
+            let fetchedPharmacies = try await apiService.fetchPharmacies(city: city, district: district)
             cacheAge = 0
 
-            if let userLoc = userLocation {
-                let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
+            // Offload distance calculation and sorting to a background task
+            let userLoc = userLocation
+            let result = await Task.detached(priority: .userInitiated) {
+                var pharmacies = fetchedPharmacies
+                if let userLoc = userLoc {
+                    let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                    for i in pharmacies.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: pharmacies[i].latitude,
+                            longitude: pharmacies[i].longitude
+                        )
+                        pharmacies[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    pharmacies.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
                 }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
-            }
+                return pharmacies
+            }.value
+
             pharmacies = result
         } catch {
             errorMessage = error.localizedDescription
