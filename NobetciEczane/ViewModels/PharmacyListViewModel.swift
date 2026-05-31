@@ -57,21 +57,28 @@ class PharmacyListViewModel: ObservableObject {
         cacheAge = PharmacyCache.shared.cacheAge(city: city, district: district)
 
         do {
-            var result = try await apiService.fetchPharmacies(city: city, district: district)
+            let result = try await apiService.fetchPharmacies(city: city, district: district)
             cacheAge = 0
+            let userLoc = userLocation
 
-            if let userLoc = userLocation {
-                let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
+            // Offload distance calculations and sorting to a background task to keep Main Actor responsive
+            let processedPharmacies = await Task.detached(priority: .userInitiated) {
+                var pharmacies = result
+                if let userLoc = userLoc {
+                    let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                    for i in pharmacies.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: pharmacies[i].latitude,
+                            longitude: pharmacies[i].longitude
+                        )
+                        pharmacies[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    pharmacies.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
                 }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
-            }
-            pharmacies = result
+                return pharmacies
+            }.value
+
+            pharmacies = processedPharmacies
         } catch {
             errorMessage = error.localizedDescription
         }
