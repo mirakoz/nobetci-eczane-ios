@@ -1,0 +1,16 @@
+# Secrets
+Secrets.plist
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+*.xcuserdatad
+*.xcuserstate
+.DS_Store
+
+# Other
+.jules/bolt.md
+.jules/palette.md
+.jules/sentinel.md
