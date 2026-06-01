@@ -1,0 +1,13 @@
+# Secrets
+NobetciEczane/Resources/Secrets.plist
+
+# Build artifacts
+build/
+DerivedData/
+
+# Xcode personal settings
+*.xcuserdatad
+*.xcuserstate
+
+# OS generated files
+.DS_Store
