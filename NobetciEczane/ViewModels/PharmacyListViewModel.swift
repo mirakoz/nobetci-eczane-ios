@@ -57,21 +57,31 @@ class PharmacyListViewModel: ObservableObject {
         cacheAge = PharmacyCache.shared.cacheAge(city: city, district: district)
 
         do {
-            var result = try await apiService.fetchPharmacies(city: city, district: district)
+            let fetchedPharmacies = try await apiService.fetchPharmacies(city: city, district: district)
             cacheAge = 0
 
-            if let userLoc = userLocation {
-                let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
+            // Capture user location to avoid Main Actor access inside the detached task
+            let userLoc = userLocation
+
+            // Offload distance calculation and sorting to a background task
+            // to keep the Main Actor responsive during heavy data processing.
+            let processedPharmacies = await Task.detached(priority: .userInitiated) {
+                var results = fetchedPharmacies
+                if let userLoc = userLoc {
+                    let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                    for i in results.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: results[i].latitude,
+                            longitude: results[i].longitude
+                        )
+                        results[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    results.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
                 }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
-            }
-            pharmacies = result
+                return results
+            }.value
+
+            pharmacies = processedPharmacies
         } catch {
             errorMessage = error.localizedDescription
         }
