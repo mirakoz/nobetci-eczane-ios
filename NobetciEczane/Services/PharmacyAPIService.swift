@@ -175,18 +175,19 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let turkishMap: [Character: String] = [
+        "İ": "i", "I": "i", "ı": "i",
+        "Ş": "s", "ş": "s",
+        "Ğ": "g", "ğ": "g",
+        "Ü": "u", "ü": "u",
+        "Ö": "o", "ö": "o",
+        "Ç": "c", "ç": "c",
+        " ": "-"
+    ]
+
     func slugified() -> String {
         var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
+        for (char, replacement) in Self.turkishMap {
             s = s.replacingOccurrences(of: String(char), with: replacement)
         }
         s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
