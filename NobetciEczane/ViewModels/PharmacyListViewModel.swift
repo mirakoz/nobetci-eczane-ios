@@ -61,17 +61,24 @@ class PharmacyListViewModel: ObservableObject {
             cacheAge = 0
 
             if let userLoc = userLocation {
-                let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
-                for i in result.indices {
-                    let pharmacyCoords = Coordinates(
-                        latitude: result[i].latitude,
-                        longitude: result[i].longitude
-                    )
-                    result[i].distance = userCoords.distance(to: pharmacyCoords)
-                }
-                result.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
+                // Offload distance calculations and sorting to a background task
+                // to keep the Main Actor responsive, especially for large lists.
+                pharmacies = await Task.detached(priority: .userInitiated) {
+                    var sortedResult = result
+                    let userCoords = Coordinates(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                    for i in sortedResult.indices {
+                        let pharmacyCoords = Coordinates(
+                            latitude: sortedResult[i].latitude,
+                            longitude: sortedResult[i].longitude
+                        )
+                        sortedResult[i].distance = userCoords.distance(to: pharmacyCoords)
+                    }
+                    sortedResult.sort { ($0.distance ?? 0) < ($1.distance ?? 0) }
+                    return sortedResult
+                }.value
+            } else {
+                pharmacies = result
             }
-            pharmacies = result
         } catch {
             errorMessage = error.localizedDescription
         }
