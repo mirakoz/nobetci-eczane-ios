@@ -1,0 +1,28 @@
+# Xcode
+#
+# gitignore contributors: writers on GitHub
+
+## Build results
+build/
+DerivedData/
+
+## Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+## Other
+*.bundle
+*.lib
+*.log
+*.sql
+*.sqlite
+
+## Secrets
+NobetciEczane/Resources/Secrets.plist
