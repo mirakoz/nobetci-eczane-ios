@@ -137,7 +137,7 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    var id: UUID { UUID() }
+    var id: String { slug }
     let cities: String
     let slug: String
 
@@ -175,21 +175,28 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let turkishMap: [Character: String] = [
+        "İ": "i", "I": "i", "ı": "i",
+        "Ş": "s", "ş": "s",
+        "Ğ": "g", "ğ": "g",
+        "Ü": "u", "ü": "u",
+        "Ö": "o", "ö": "o",
+        "Ç": "c", "ç": "c",
+        " ": "-"
+    ]
+
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        let input = self.lowercased()
+        var result = ""
+        result.reserveCapacity(input.count)
+
+        for char in input {
+            if let replacement = Self.turkishMap[char] {
+                result.append(contentsOf: replacement)
+            } else if char.isLetter || char.isNumber || char == "-" {
+                result.append(char)
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
