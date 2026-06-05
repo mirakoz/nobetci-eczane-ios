@@ -137,7 +137,7 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    var id: UUID { UUID() }
+    var id: String { slug }
     let cities: String
     let slug: String
 
