@@ -1,0 +1,3 @@
+## 2026-06-06 - [Optimized String Slugification]
+**Learning:** The original `slugified()` implementation was O(N*M) due to repeated `replacingOccurrences` calls, which triggered multiple full-string scans and reallocations. In Swift, building a string via a single-pass loop over `Character`s with `reserveCapacity` is significantly more efficient for character mapping and filtering.
+**Action:** Always prefer single-pass loops with a mapping dictionary and `reserveCapacity` when performing multiple character replacements or filtering on strings, especially in hot paths like API request construction.
