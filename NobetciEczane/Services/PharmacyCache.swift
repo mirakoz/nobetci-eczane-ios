@@ -3,6 +3,9 @@ import Foundation
 final class PharmacyCache {
     static let shared = PharmacyCache()
 
+    private static let encoder = JSONEncoder()
+    private static let decoder = JSONDecoder()
+
     private let cacheDir: URL
     private let ttlSeconds: TimeInterval = 2 * 60 * 60 // 2 hours
 
@@ -21,11 +24,11 @@ final class PharmacyCache {
 
         guard let data = try? Data(contentsOf: fileURL),
               let meta = try? Data(contentsOf: metaURL),
-              let timestamp = try? JSONDecoder().decode(CacheMeta.self, from: meta) else {
+              let timestamp = try? Self.decoder.decode(CacheMeta.self, from: meta) else {
             return ([], true)
         }
 
-        let pharmacies = (try? JSONDecoder().decode([Pharmacy].self, from: data)) ?? []
+        let pharmacies = (try? Self.decoder.decode([Pharmacy].self, from: data)) ?? []
         let age = Date().timeIntervalSince(timestamp.date)
         let isStale = age > ttlSeconds
 
@@ -37,9 +40,9 @@ final class PharmacyCache {
         let fileURL = cacheDir.appendingPathComponent("\(key).json")
         let metaURL = cacheDir.appendingPathComponent("\(key).meta")
 
-        guard let data = try? JSONEncoder().encode(pharmacies) else { return }
+        guard let data = try? Self.encoder.encode(pharmacies) else { return }
         let meta = CacheMeta(date: Date())
-        guard let metaData = try? JSONEncoder().encode(meta) else { return }
+        guard let metaData = try? Self.encoder.encode(meta) else { return }
 
         try? data.write(to: fileURL)
         try? metaData.write(to: metaURL)
@@ -55,7 +58,7 @@ final class PharmacyCache {
         let metaURL = cacheDir.appendingPathComponent("\(key).meta")
 
         guard let meta = try? Data(contentsOf: metaURL),
-              let timestamp = try? JSONDecoder().decode(CacheMeta.self, from: meta) else {
+              let timestamp = try? Self.decoder.decode(CacheMeta.self, from: meta) else {
             return nil
         }
         return Date().timeIntervalSince(timestamp.date)
