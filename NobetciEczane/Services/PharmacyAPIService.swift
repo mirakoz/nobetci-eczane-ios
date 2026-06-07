@@ -3,6 +3,7 @@ import Foundation
 actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
+    private static let decoder = JSONDecoder()
 
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
         // Check cache first
@@ -35,7 +36,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
             // Fall back to stale cache if available
@@ -73,7 +74,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(DistrictsAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 
@@ -97,7 +98,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(CitiesAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 }
@@ -137,7 +138,7 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    var id: UUID { UUID() }
+    var id: String { slug }
     let cities: String
     let slug: String
 
@@ -175,21 +176,31 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let turkishMap: [Character: String] = [
+        "İ": "i", "I": "i", "ı": "i",
+        "Ş": "s", "ş": "s",
+        "Ğ": "g", "ğ": "g",
+        "Ü": "u", "ü": "u",
+        "Ö": "o", "ö": "o",
+        "Ç": "c", "ç": "c",
+        " ": "-"
+    ]
+
+    /// Optimized slugification that uses a single pass and avoids multiple string allocations.
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        var result = ""
+        result.reserveCapacity(self.count)
+
+        for char in self {
+            if let replacement = Self.turkishMap[char] {
+                result.append(replacement)
+            } else {
+                let lowered = char.lowercased()
+                if let first = lowered.first, (first.isLetter || first.isNumber || first == "-") {
+                    result.append(first)
+                }
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
