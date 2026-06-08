@@ -4,6 +4,9 @@ actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
 
+    // Reuse decoder to avoid repeated allocations
+    private static let decoder = JSONDecoder()
+
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
         // Check cache first
         let (cached, isStale) = PharmacyCache.shared.cachedPharmacies(city: city, district: district)
@@ -35,7 +38,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
             // Fall back to stale cache if available
@@ -73,7 +76,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(DistrictsAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 
@@ -97,7 +100,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(CitiesAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 }
@@ -137,9 +140,11 @@ struct DistrictsAPIResponse2: Codable {
 }
 
 struct District: Identifiable, Codable, Hashable {
-    var id: UUID { UUID() }
     let cities: String
     let slug: String
+
+    // Stable ID using slug instead of generating UUIDs which breaks SwiftUI identity tracking
+    var id: String { slug }
 
     var displayName: String { cities }
 
@@ -175,21 +180,31 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let turkishMap: [Character: String] = [
+        "İ": "i", "I": "i", "ı": "i",
+        "Ş": "s", "ş": "s",
+        "Ğ": "g", "ğ": "g",
+        "Ü": "u", "ü": "u",
+        "Ö": "o", "ö": "o",
+        "Ç": "c", "ç": "c",
+        " ": "-"
+    ]
+
+    // Optimized slugification using lookup dictionary and single-pass loop
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        var result = String()
+        result.reserveCapacity(self.count)
+
+        for char in self {
+            if let replacement = Self.turkishMap[char] {
+                result.append(replacement)
+            } else {
+                let lowered = char.lowercased()
+                if let first = lowered.first, first.isLetter || first.isNumber || first == "-" {
+                    result.append(first)
+                }
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
