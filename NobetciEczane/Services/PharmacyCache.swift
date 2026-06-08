@@ -6,6 +6,10 @@ final class PharmacyCache {
     private let cacheDir: URL
     private let ttlSeconds: TimeInterval = 2 * 60 * 60 // 2 hours
 
+    // Reuse coders to avoid repeated allocations
+    private static let decoder = JSONDecoder()
+    private static let encoder = JSONEncoder()
+
     private init() {
         let paths = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
         cacheDir = paths[0].appendingPathComponent("PharmacyCache", isDirectory: true)
@@ -17,32 +21,32 @@ final class PharmacyCache {
     func cachedPharmacies(city: String, district: String?) -> (pharmacies: [Pharmacy], isStale: Bool) {
         let key = cacheKey(city: city, district: district)
         let fileURL = cacheDir.appendingPathComponent("\(key).json")
-        let metaURL = cacheDir.appendingPathComponent("\(key).meta")
 
+        // Single disk I/O and single decoding step for both data and metadata
         guard let data = try? Data(contentsOf: fileURL),
-              let meta = try? Data(contentsOf: metaURL),
-              let timestamp = try? JSONDecoder().decode(CacheMeta.self, from: meta) else {
+              let entry = try? Self.decoder.decode(CacheEntry.self, from: data) else {
             return ([], true)
         }
 
-        let pharmacies = (try? JSONDecoder().decode([Pharmacy].self, from: data)) ?? []
-        let age = Date().timeIntervalSince(timestamp.date)
+        let age = Date().timeIntervalSince(entry.date)
         let isStale = age > ttlSeconds
 
-        return (pharmacies, isStale)
+        return (entry.pharmacies, isStale)
     }
 
     func cachePharmacies(_ pharmacies: [Pharmacy], city: String, district: String?) {
         let key = cacheKey(city: city, district: district)
         let fileURL = cacheDir.appendingPathComponent("\(key).json")
-        let metaURL = cacheDir.appendingPathComponent("\(key).meta")
 
-        guard let data = try? JSONEncoder().encode(pharmacies) else { return }
-        let meta = CacheMeta(date: Date())
-        guard let metaData = try? JSONEncoder().encode(meta) else { return }
+        let entry = CacheEntry(pharmacies: pharmacies, date: Date())
+        guard let data = try? Self.encoder.encode(entry) else { return }
 
+        // Single disk I/O operation
         try? data.write(to: fileURL)
-        try? metaData.write(to: metaURL)
+
+        // Clean up old meta files if they exist from previous versions
+        let metaURL = cacheDir.appendingPathComponent("\(key).meta")
+        try? FileManager.default.removeItem(at: metaURL)
     }
 
     func clearCache() {
@@ -52,13 +56,13 @@ final class PharmacyCache {
 
     func cacheAge(city: String, district: String?) -> TimeInterval? {
         let key = cacheKey(city: city, district: district)
-        let metaURL = cacheDir.appendingPathComponent("\(key).meta")
+        let fileURL = cacheDir.appendingPathComponent("\(key).json")
 
-        guard let meta = try? Data(contentsOf: metaURL),
-              let timestamp = try? JSONDecoder().decode(CacheMeta.self, from: meta) else {
+        guard let data = try? Data(contentsOf: fileURL),
+              let entry = try? Self.decoder.decode(CacheEntry.self, from: data) else {
             return nil
         }
-        return Date().timeIntervalSince(timestamp.date)
+        return Date().timeIntervalSince(entry.date)
     }
 
     // MARK: - Private
@@ -70,6 +74,7 @@ final class PharmacyCache {
     }
 }
 
-private struct CacheMeta: Codable {
+private struct CacheEntry: Codable {
+    let pharmacies: [Pharmacy]
     let date: Date
 }
