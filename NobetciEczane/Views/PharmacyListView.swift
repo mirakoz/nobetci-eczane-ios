@@ -165,28 +165,10 @@ struct CityPickerSheet: View {
     @State private var selectedCity: String = ""
     @State private var isLoading = false
 
-    private let topCities = ["İstanbul", "Ankara", "İzmir"]
-    private let sortedCities: [String] = {
-        let all = [
-            "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Antalya",
-            "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik",
-            "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa", "Çanakkale", "Çankırı", "Çorum",
-            "Denizli", "Diyarbakır", "Düzce", "Edirne", "Elazığ", "Erzincan", "Erzurum", "Eskişehir",
-            "Gaziantep", "Giresun", "Gümüşhane", "Hakkari", "Hatay", "Iğdır", "Isparta",
-            "Kahramanmaraş", "Karabük", "Karaman", "Kars", "Kastamonu", "Kayseri",
-            "Kırıkkale", "Kırklareli", "Kırşehir", "Kilis", "Kocaeli", "Konya", "Kütahya", "Malatya",
-            "Manisa", "Mardin", "Mersin", "Muğla", "Muş", "Nevşehir", "Niğde", "Ordu", "Osmaniye",
-            "Rize", "Sakarya", "Samsun", "Siirt", "Sinop", "Sivas", "Şanlıurfa", "Şırnak",
-            "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
-            "Kıbrıs KKTC"
-        ]
-        return all.sorted()
-    }()
-    private var allCities: [String] { topCities + sortedCities }
-
     var body: some View {
         NavigationStack {
-            List(allCities, id: \.self) { city in
+            // Use pre-sorted centralized city list to avoid redundant sorting logic in view initializer.
+            List(Constants.allCities, id: \.self) { city in
                 Button {
                     selectedCity = city
                 } label: {
