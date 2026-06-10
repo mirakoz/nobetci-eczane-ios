@@ -3,9 +3,15 @@ import UIKit
 
 struct PhoneService {
     static func call(phoneNumber: String) -> Bool {
-        let cleaned = phoneNumber.replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "-", with: "")
-        guard let url = URL(string: "tel:\(cleaned)"),
+        // Whitelist: Allow only digits and '+' for tel: URL scheme
+        let allowed = CharacterSet.decimalDigits.union(CharacterSet(charactersIn: "+"))
+        let cleaned = phoneNumber.filter { char in
+            guard let unicodeScalar = char.unicodeScalars.first else { return false }
+            return allowed.contains(unicodeScalar)
+        }
+
+        guard !cleaned.isEmpty,
+              let url = URL(string: "tel:\(cleaned)"),
               UIApplication.shared.canOpenURL(url) else {
             return false
         }
