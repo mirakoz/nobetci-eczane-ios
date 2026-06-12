@@ -3,9 +3,9 @@ import UIKit
 
 struct PhoneService {
     static func call(phoneNumber: String) -> Bool {
-        let cleaned = phoneNumber.replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "-", with: "")
-        guard let url = URL(string: "tel:\(cleaned)"),
+        let cleaned = phoneNumber.filter { $0.isNumber || $0 == "+" }
+        guard !cleaned.isEmpty,
+              let url = URL(string: "tel:\(cleaned)"),
               UIApplication.shared.canOpenURL(url) else {
             return false
         }
