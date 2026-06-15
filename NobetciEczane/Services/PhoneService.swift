@@ -3,8 +3,8 @@ import UIKit
 
 struct PhoneService {
     static func call(phoneNumber: String) -> Bool {
-        let cleaned = phoneNumber.replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "-", with: "")
+        // Use an allow-list (digits and '+') to sanitize the phone number for the tel: URL scheme.
+        let cleaned = phoneNumber.filter { $0.isNumber || $0 == "+" }
         guard let url = URL(string: "tel:\(cleaned)"),
               UIApplication.shared.canOpenURL(url) else {
             return false
