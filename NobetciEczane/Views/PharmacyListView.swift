@@ -4,7 +4,6 @@ struct PharmacyListView: View {
     @StateObject private var viewModel = PharmacyListViewModel()
     @State private var showCityPicker = false
     @State private var showDistrictPicker = false
-    @State private var searchText = ""
 
     var body: some View {
         NavigationStack {
@@ -164,6 +163,7 @@ struct CityPickerSheet: View {
     @Binding var isPresented: Bool
     @State private var selectedCity: String = ""
     @State private var isLoading = false
+    @State private var searchText = ""
 
     private let topCities = ["İstanbul", "Ankara", "İzmir"]
     private let sortedCities: [String] = {
@@ -183,10 +183,17 @@ struct CityPickerSheet: View {
         return all.sorted()
     }()
     private var allCities: [String] { topCities + sortedCities }
+    private var filteredCities: [String] {
+        if searchText.isEmpty {
+            return allCities
+        } else {
+            return allCities.filter { $0.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            List(allCities, id: \.self) { city in
+            List(filteredCities, id: \.self) { city in
                 Button {
                     selectedCity = city
                 } label: {
@@ -203,6 +210,7 @@ struct CityPickerSheet: View {
             }
             .navigationTitle("Şehir Seç")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Şehir ara...")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("İptal") {
@@ -230,6 +238,15 @@ struct DistrictPickerSheet: View {
     @ObservedObject var viewModel: PharmacyListViewModel
     @Binding var isPresented: Bool
     @State private var selectedDistrict: String = ""
+    @State private var searchText = ""
+
+    private var filteredDistricts: [District] {
+        if searchText.isEmpty {
+            return viewModel.availableDistricts
+        } else {
+            return viewModel.availableDistricts.filter { $0.cities.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -240,7 +257,7 @@ struct DistrictPickerSheet: View {
                     Text("Bu şehirde ilçe bulunamadı.")
                         .foregroundStyle(.secondary)
                 } else {
-                    List(viewModel.availableDistricts) { district in
+                    List(filteredDistricts) { district in
                         Button {
                             selectedDistrict = district.cities
                         } label: {
@@ -259,6 +276,7 @@ struct DistrictPickerSheet: View {
             }
             .navigationTitle("İlçe Seç")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "İlçe ara...")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("İptal") {
