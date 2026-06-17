@@ -3,6 +3,8 @@ import Foundation
 actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
+    /// Reusing decoder instance to avoid the overhead of repeated initializations.
+    private let decoder = JSONDecoder()
 
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
         // Check cache first
@@ -35,7 +37,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try decoder.decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
             // Fall back to stale cache if available
@@ -73,7 +75,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        let decoded = try decoder.decode(DistrictsAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 
@@ -97,7 +99,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        let decoded = try decoder.decode(CitiesAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 }
