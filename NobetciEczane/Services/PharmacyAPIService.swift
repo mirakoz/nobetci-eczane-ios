@@ -3,6 +3,7 @@ import Foundation
 actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
+    private let decoder = JSONDecoder()
 
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
         // Check cache first
@@ -35,7 +36,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try decoder.decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
             // Fall back to stale cache if available
@@ -73,7 +74,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        let decoded = try decoder.decode(DistrictsAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 
@@ -97,7 +98,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        let decoded = try decoder.decode(CitiesAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 }
@@ -175,21 +176,24 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let slugMap: [Character: Character] = [
+        "ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c", " ": "-"
+    ]
+
+    /// Sanitizes input by converting to lowercase, mapping Turkish characters,
+    /// and removing non-alphanumeric characters (except dashes).
+    /// Optimized for O(n) single-pass processing with minimal allocations.
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        let input = self.lowercased()
+        var result = ""
+        result.reserveCapacity(input.count)
+        for char in input {
+            if let replacement = Self.slugMap[char] {
+                result.append(replacement)
+            } else if char.isLetter || char.isNumber || char == "-" {
+                result.append(char)
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
