@@ -4,6 +4,9 @@ actor PharmacyAPIService {
     private let apiKey = Constants.nosyAPIKey
     private let baseURL = Constants.nosyAPIURL
 
+    /// Reusing a static decoder instance avoids the overhead of repeated initializations.
+    private static let decoder = JSONDecoder()
+
     func fetchPharmacies(city: String, district: String? = nil) async throws -> [Pharmacy] {
         // Check cache first
         let (cached, isStale) = PharmacyCache.shared.cachedPharmacies(city: city, district: district)
@@ -35,7 +38,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(PharmacyAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(PharmacyAPIResponse.self, from: data)
 
         guard decoded.status == "success", let pharmacies = decoded.data else {
             // Fall back to stale cache if available
@@ -73,7 +76,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(DistrictsAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 
@@ -97,7 +100,7 @@ actor PharmacyAPIService {
             throw APIError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        let decoded = try Self.decoder.decode(CitiesAPIResponse.self, from: data)
         return decoded.data ?? []
     }
 }
@@ -175,21 +178,30 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let slugMap: [Character: String] = [
+        "İ": "i", "I": "i", "ı": "i",
+        "Ş": "s", "ş": "s",
+        "Ğ": "g", "ğ": "g",
+        "Ü": "u", "ü": "u",
+        "Ö": "o", "ö": "o",
+        "Ç": "c", "ç": "c",
+        " ": "-"
+    ]
+
+    /// Converts a string to a URL-friendly slug using a single-pass O(n) algorithm.
+    /// This approach avoids multiple string allocations caused by repeated `replacingOccurrences` calls.
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        let base = self.lowercased()
+        var result = String()
+        // Pre-allocating capacity reduces the number of re-allocations as the string grows.
+        result.reserveCapacity(base.count)
+        for char in base {
+            if let replacement = Self.slugMap[char] {
+                result.append(replacement)
+            } else if char.isLetter || char.isNumber || char == "-" {
+                result.append(char)
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
