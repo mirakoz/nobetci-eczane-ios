@@ -11,12 +11,14 @@ actor PharmacyAPIService {
             return cached
         }
 
-        var urlString = "\(baseURL)?city=\(city.slugified())"
+        var components = URLComponents(string: baseURL)
+        var queryItems = [URLQueryItem(name: "city", value: city.slugified())]
         if let district = district, !district.isEmpty {
-            urlString += "&district=\(district.slugified())"
+            queryItems.append(URLQueryItem(name: "district", value: district.slugified()))
         }
+        components?.queryItems = queryItems
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components?.url else {
             throw APIError.invalidURL
         }
 
@@ -52,9 +54,10 @@ actor PharmacyAPIService {
     }
 
     func fetchDistricts(city: String) async throws -> [District] {
-        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+        var components = URLComponents(string: Constants.nosyCitiesURL)
+        components?.queryItems = [URLQueryItem(name: "city", value: city.slugified())]
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components?.url else {
             throw APIError.invalidURL
         }
 
@@ -113,7 +116,7 @@ enum APIError: LocalizedError {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucudan geçersiz yanıt"
         case .httpError(let code): return "HTTP hatası: \(code)"
-        case .decodingError(let msg): return "Veri hatası: \(msg)"
+        case .decodingError: return "Veri hatası"
         }
     }
 }
