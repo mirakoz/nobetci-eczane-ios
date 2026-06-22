@@ -11,12 +11,19 @@ actor PharmacyAPIService {
             return cached
         }
 
-        var urlString = "\(baseURL)?city=\(city.slugified())"
-        if let district = district, !district.isEmpty {
-            urlString += "&district=\(district.slugified())"
+        // Security: Use URLComponents for robust URL construction and percent-encoding
+        // to prevent potential URI injection or malformed requests.
+        guard var components = URLComponents(string: baseURL) else {
+            throw APIError.invalidURL
         }
 
-        guard let url = URL(string: urlString) else {
+        var queryItems = [URLQueryItem(name: "city", value: city.slugified())]
+        if let district = district, !district.isEmpty {
+            queryItems.append(URLQueryItem(name: "district", value: district.slugified()))
+        }
+        components.queryItems = queryItems
+
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -52,9 +59,14 @@ actor PharmacyAPIService {
     }
 
     func fetchDistricts(city: String) async throws -> [District] {
-        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+        // Security: Use URLComponents to ensure parameters are correctly encoded.
+        guard var components = URLComponents(string: Constants.nosyCitiesURL) else {
+            throw APIError.invalidURL
+        }
 
-        guard let url = URL(string: urlString) else {
+        components.queryItems = [URLQueryItem(name: "city", value: city.slugified())]
+
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -113,7 +125,10 @@ enum APIError: LocalizedError {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucudan geçersiz yanıt"
         case .httpError(let code): return "HTTP hatası: \(code)"
-        case .decodingError(let msg): return "Veri hatası: \(msg)"
+        case .decodingError(_):
+            // Security: Fail securely by returning a generic error message
+            // to avoid leaking internal data structure details.
+            return "Veri hatası"
         }
     }
 }
