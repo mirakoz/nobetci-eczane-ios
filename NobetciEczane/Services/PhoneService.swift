@@ -14,7 +14,17 @@ struct PhoneService {
     }
 
     static func openDirections(latitude: Double, longitude: Double, name: String) {
-        if let url = URL(string: "maps://?daddr=\(latitude),\(longitude)&dirflg=d") {
+        // Use URLComponents for secure and robust URL construction, ensuring
+        // parameters are properly percent-encoded and preventing injection risks.
+        var components = URLComponents()
+        components.scheme = "maps"
+        components.host = ""
+        components.queryItems = [
+            URLQueryItem(name: "daddr", value: "\(latitude),\(longitude)"),
+            URLQueryItem(name: "dirflg", value: "d")
+        ]
+
+        if let url = components.url {
             UIApplication.shared.open(url)
         }
     }
