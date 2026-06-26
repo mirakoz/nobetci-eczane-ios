@@ -165,8 +165,8 @@ struct CityPickerSheet: View {
     @State private var selectedCity: String = ""
     @State private var isLoading = false
 
-    private let topCities = ["İstanbul", "Ankara", "İzmir"]
-    private let sortedCities: [String] = {
+    private static let topCities = ["İstanbul", "Ankara", "İzmir"]
+    private static let sortedCities: [String] = {
         let all = [
             "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Antalya",
             "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik",
@@ -182,11 +182,11 @@ struct CityPickerSheet: View {
         ]
         return all.sorted()
     }()
-    private var allCities: [String] { topCities + sortedCities }
+    private static let allCities: [String] = topCities + sortedCities
 
     var body: some View {
         NavigationStack {
-            List(allCities, id: \.self) { city in
+            List(Self.allCities, id: \.self) { city in
                 Button {
                     selectedCity = city
                 } label: {
