@@ -14,7 +14,14 @@ struct PhoneService {
     }
 
     static func openDirections(latitude: Double, longitude: Double, name: String) {
-        if let url = URL(string: "maps://?daddr=\(latitude),\(longitude)&dirflg=d") {
+        var components = URLComponents()
+        components.scheme = "maps"
+        components.queryItems = [
+            URLQueryItem(name: "daddr", value: "\(latitude),\(longitude)"),
+            URLQueryItem(name: "dirflg", value: "d")
+        ]
+
+        if let url = components.url {
             UIApplication.shared.open(url)
         }
     }
