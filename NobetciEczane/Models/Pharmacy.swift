@@ -1,6 +1,6 @@
 import Foundation
 
-struct Pharmacy: Identifiable, Codable, Equatable {
+struct Pharmacy: Identifiable, Codable, Equatable, Hashable {
     let id: Int
     let name: String
     let address: String
