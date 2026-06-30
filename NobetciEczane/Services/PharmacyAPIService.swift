@@ -175,21 +175,35 @@ struct City: Identifiable, Codable, Hashable {
 }
 
 extension String {
+    private static let turkishSlugMap: [Character: Character] = [
+        "ı": "i", "İ": "i", "I": "i",
+        "ş": "s", "Ş": "s",
+        "ğ": "g", "Ğ": "g",
+        "ü": "u", "Ü": "u",
+        "ö": "o", "Ö": "o",
+        "ç": "c", "Ç": "c",
+        " ": "-"
+    ]
+
+    /// A performance-optimized slugify implementation for Turkish characters.
+    /// Performs a single pass over the string with O(N) complexity, avoiding multiple string allocations.
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
-            "İ": "i", "I": "i", "ı": "i",
-            "Ş": "s", "ş": "s",
-            "Ğ": "g", "ğ": "g",
-            "Ü": "u", "ü": "u",
-            "Ö": "o", "ö": "o",
-            "Ç": "c", "ç": "c",
-            " ": "-"
-        ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+        var result = ""
+        result.reserveCapacity(self.count)
+        for char in self {
+            if let replacement = Self.turkishSlugMap[char] {
+                result.append(replacement)
+            } else if (char >= "a" && char <= "z") || (char >= "0" && char <= "9") || char == "-" {
+                result.append(char)
+            } else {
+                let low = char.lowercased()
+                for c in low {
+                    if c.isLetter || c.isNumber || c == "-" {
+                        result.append(c)
+                    }
+                }
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
