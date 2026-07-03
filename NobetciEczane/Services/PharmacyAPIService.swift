@@ -11,12 +11,18 @@ actor PharmacyAPIService {
             return cached
         }
 
-        var urlString = "\(baseURL)?city=\(city.slugified())"
-        if let district = district, !district.isEmpty {
-            urlString += "&district=\(district.slugified())"
+        // Use URLComponents for robust URL construction and defense-in-depth against injection.
+        guard var components = URLComponents(string: baseURL) else {
+            throw APIError.invalidURL
         }
 
-        guard let url = URL(string: urlString) else {
+        var queryItems = [URLQueryItem(name: "city", value: city.slugified())]
+        if let district = district, !district.isEmpty {
+            queryItems.append(URLQueryItem(name: "district", value: district.slugified()))
+        }
+        components.queryItems = queryItems
+
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -52,9 +58,13 @@ actor PharmacyAPIService {
     }
 
     func fetchDistricts(city: String) async throws -> [District] {
-        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+        // Use URLComponents for robust parameter encoding.
+        guard var components = URLComponents(string: Constants.nosyCitiesURL) else {
+            throw APIError.invalidURL
+        }
+        components.queryItems = [URLQueryItem(name: "city", value: city.slugified())]
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -78,7 +88,9 @@ actor PharmacyAPIService {
     }
 
     func fetchAllCities() async throws -> [City] {
-        guard let url = URL(string: Constants.nosyCitiesURL) else {
+        // Use URLComponents for consistent URL handling.
+        guard let components = URLComponents(string: Constants.nosyCitiesURL),
+              let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -112,8 +124,8 @@ enum APIError: LocalizedError {
         switch self {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucudan geçersiz yanıt"
-        case .httpError(let code): return "HTTP hatası: \(code)"
-        case .decodingError(let msg): return "Veri hatası: \(msg)"
+        case .httpError: return "Sunucu hatası oluştu" // Sanitize: don't leak HTTP status codes
+        case .decodingError: return "Veri hatası oluştu" // Sanitize: don't leak raw API error strings
         }
     }
 }
