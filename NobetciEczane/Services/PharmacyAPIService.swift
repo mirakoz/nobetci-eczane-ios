@@ -11,12 +11,17 @@ actor PharmacyAPIService {
             return cached
         }
 
-        var urlString = "\(baseURL)?city=\(city.slugified())"
-        if let district = district, !district.isEmpty {
-            urlString += "&district=\(district.slugified())"
+        guard var components = URLComponents(string: baseURL) else {
+            throw APIError.invalidURL
         }
 
-        guard let url = URL(string: urlString) else {
+        var queryItems = [URLQueryItem(name: "city", value: city.slugified())]
+        if let district = district, !district.isEmpty {
+            queryItems.append(URLQueryItem(name: "district", value: district.slugified()))
+        }
+        components.queryItems = queryItems
+
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
@@ -42,7 +47,8 @@ actor PharmacyAPIService {
             if !cached.isEmpty {
                 return cached
             }
-            throw APIError.decodingError(message: decoded.message ?? "Unknown error")
+            // Defense-in-depth: Do not leak internal API error messages to the user.
+            throw APIError.decodingError(message: "Sunucudan veri alınırken bir hata oluştu")
         }
 
         // Cache the fresh result
@@ -52,9 +58,12 @@ actor PharmacyAPIService {
     }
 
     func fetchDistricts(city: String) async throws -> [District] {
-        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+        guard var components = URLComponents(string: Constants.nosyCitiesURL) else {
+            throw APIError.invalidURL
+        }
+        components.queryItems = [URLQueryItem(name: "city", value: city.slugified())]
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components.url else {
             throw APIError.invalidURL
         }
 
