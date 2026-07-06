@@ -176,8 +176,9 @@ struct City: Identifiable, Codable, Hashable {
 
 extension String {
     func slugified() -> String {
-        var s = self.lowercased()
-        let turkishMap: [Character: String] = [
+        // Optimization: Single-pass O(N) implementation with pre-allocated capacity.
+        // This avoids O(M*N) complexity and multiple string allocations from repeated replacements.
+        let turkishMap: [Character: Character] = [
             "İ": "i", "I": "i", "ı": "i",
             "Ş": "s", "ş": "s",
             "Ğ": "g", "ğ": "g",
@@ -186,10 +187,21 @@ extension String {
             "Ç": "c", "ç": "c",
             " ": "-"
         ]
-        for (char, replacement) in turkishMap {
-            s = s.replacingOccurrences(of: String(char), with: replacement)
+
+        var result = ""
+        result.reserveCapacity(self.count)
+
+        for char in self {
+            if let mapping = turkishMap[char] {
+                result.append(mapping)
+            } else {
+                for lowerChar in char.lowercased() {
+                    if lowerChar.isLetter || lowerChar.isNumber || lowerChar == "-" {
+                        result.append(lowerChar)
+                    }
+                }
+            }
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return s
+        return result
     }
 }
