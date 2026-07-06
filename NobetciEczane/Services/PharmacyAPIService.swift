@@ -11,12 +11,14 @@ actor PharmacyAPIService {
             return cached
         }
 
-        var urlString = "\(baseURL)?city=\(city.slugified())"
+        var components = URLComponents(string: baseURL)
+        var queryItems = [URLQueryItem(name: "city", value: city.slugified())]
         if let district = district, !district.isEmpty {
-            urlString += "&district=\(district.slugified())"
+            queryItems.append(URLQueryItem(name: "district", value: district.slugified()))
         }
+        components?.queryItems = queryItems
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components?.url else {
             throw APIError.invalidURL
         }
 
@@ -52,9 +54,10 @@ actor PharmacyAPIService {
     }
 
     func fetchDistricts(city: String) async throws -> [District] {
-        let urlString = "\(Constants.nosyCitiesURL)?city=\(city.slugified())"
+        var components = URLComponents(string: Constants.nosyCitiesURL)
+        components?.queryItems = [URLQueryItem(name: "city", value: city.slugified())]
 
-        guard let url = URL(string: urlString) else {
+        guard let url = components?.url else {
             throw APIError.invalidURL
         }
 
@@ -74,6 +77,9 @@ actor PharmacyAPIService {
         }
 
         let decoded = try JSONDecoder().decode(DistrictsAPIResponse.self, from: data)
+        guard decoded.status == "success" else {
+            throw APIError.decodingError(message: decoded.message ?? "Unknown error")
+        }
         return decoded.data ?? []
     }
 
@@ -98,6 +104,9 @@ actor PharmacyAPIService {
         }
 
         let decoded = try JSONDecoder().decode(CitiesAPIResponse.self, from: data)
+        guard decoded.status == "success" else {
+            throw APIError.decodingError(message: "Unknown error")
+        }
         return decoded.data ?? []
     }
 }
@@ -113,7 +122,7 @@ enum APIError: LocalizedError {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucudan geçersiz yanıt"
         case .httpError(let code): return "HTTP hatası: \(code)"
-        case .decodingError(let msg): return "Veri hatası: \(msg)"
+        case .decodingError: return "Sunucudan veri alınırken bir hata oluştu" // Generic message to prevent leakage
         }
     }
 }
@@ -176,7 +185,7 @@ struct City: Identifiable, Codable, Hashable {
 
 extension String {
     func slugified() -> String {
-        var s = self.lowercased()
+        var s = self
         let turkishMap: [Character: String] = [
             "İ": "i", "I": "i", "ı": "i",
             "Ş": "s", "ş": "s",
@@ -189,7 +198,7 @@ extension String {
         for (char, replacement) in turkishMap {
             s = s.replacingOccurrences(of: String(char), with: replacement)
         }
-        s = s.filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        s = s.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "-" }
         return s
     }
 }
